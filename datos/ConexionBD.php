@@ -9,7 +9,7 @@ require_once 'login_oracle.php';
 
 class ConexionBD
 {
-   const ESTADO_ERROR_BD = 3;
+    const ESTADO_ERROR_BD = 3;
     /**
      * Única instancia de la clase
      */
@@ -19,17 +19,15 @@ class ConexionBD
      * Instancia de PDO
      */
     private static $pdo;
+    private static $connections = [];
 
     final private function __construct()
     {
         try {
-            // Crear nueva conexión PDO
             self::obtenerBD();
         } catch (PDOException $e) {
-            // Manejo de excepciones
+            throw new ExcepcionApi(self::ESTADO_ERROR_BD, "Error de conexión: " . $e->getMessage());
         }
-
-
     }
 
     /**
@@ -65,45 +63,68 @@ class ConexionBD
              self::$pdo = new PDO(
                  "oci:dbname=" . BASE_DE_DATOS . ';charset=WE8MSWIN1252',
                  USUARIO,
-                 CONTRASENA
+                 CONTRASENA,
+                 [
+                     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                     PDO::ATTR_EMULATE_PREPARES => false,
+                     PDO::ATTR_PERSISTENT => true
+                 ]
              );
 	   } catch (PDOException $e) {
-              print "¡Error!: " . $e->getMessage() . "<br/>";
+              throw new ExcepcionApi(self::ESTADO_ERROR_BD, "Error de conexión: " . $e->getMessage());
             }
 
             // Habilitar excepciones
-            self::$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            //self::$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         }
 
         return self::$pdo;
     }
 
 
-    public function obtenerBDDist($rut) {
-        self::$pdo == null;
-        if ( ($rut == '001') or ($rut == '999') ) {
-            self::$pdo = new PDO(
-                "oci:dbname=" . BASE_DE_DATOS . ';charset=WE8MSWIN1252',
-                USUARIO,
-                CONTRASENA
-            );
-        } else {
-              throw new ExcepcionApi(self::ESTADO_ERROR_BD, "La base de datos ".$rut." no está en línea");
+    public function obtenerBDDist($rut) 
+    {
+        if (!isset(self::$connections[$rut])) {
+            if (($rut == '001') || ($rut == '999')) {
+                try {
+                    self::$connections[$rut] = new PDO(
+                        "oci:dbname=" . BASE_DE_DATOS . ';charset=WE8MSWIN1252',
+                        USUARIO,
+                        CONTRASENA,
+                        [
+                            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                            PDO::ATTR_EMULATE_PREPARES => false,
+                            PDO::ATTR_PERSISTENT => true
+                        ]
+                    );
+                } catch (PDOException $e) {
+                    throw new ExcepcionApi(self::ESTADO_ERROR_BD, "Error de conexión para RUT $rut: " . $e->getMessage());
+                }
+            } else {
+                throw new ExcepcionApi(self::ESTADO_ERROR_BD, "La base de datos $rut no está en línea");
+            }
         }
-        // Habilitar excepciones
-        self::$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-        return self::$pdo;
-  }    
+        return self::$connections[$rut];
+    }
+
+    public function cerrarConexiones()
+    {
+        self::$pdo = null;
+        foreach (self::$connections as &$conn) {
+            $conn = null;
+        }
+        self::$connections = [];
+    }
 
     /**
      * Evita la clonación del objeto
      */
-    final protected function __clone()
+    final protected function __clone() { }
+    
+    public function __destruct()
     {
-    }
-
-    function _destructor()
-    {
-        self::$pdo = null;
+        $this->cerrarConexiones();
     }
 }
