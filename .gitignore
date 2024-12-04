@@ -1,0 +1,30 @@
+# IDE y editores
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# Archivos de configuración con credenciales
+config.php
+*.ini
+
+# Archivos de log
+*.log
+logs/
+
+# Dependencias y librerías
+vendor/
+node_modules/
+
+# Archivos temporales
+*.tmp
+*.temp
+*.swp
+*.swo
+
+# Archivos de caché
+*.cache
